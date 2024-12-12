@@ -1,3 +1,8 @@
+# Attribution
+# This file includes code from SINCERITIES, originally developed by Ms. Nan Papili Gao and Dr. Rudiyanto Gunawan.
+# Available at: https://github.com/CABSEL/SINCERITIES
+# Licensed under the Simplified BSD License.
+# Modifications made by Yunge Wang, Saint Louis University.
 function(DATA, distance=1, method=1, noDIAG=0, SIGN=1) {
   
   if(!distance %in% c(1, 2, 3, 4, 5, 6, 7, 8)) {
