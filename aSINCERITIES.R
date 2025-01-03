@@ -6,22 +6,22 @@
 function(DATA, distance=1, method=1, noDIAG=0, SIGN=1) {
   
   if(!distance %in% c(1, 2, 3, 4, 5, 6, 7, 8)) {
-    stop("Choose distance metric with 1-7: \
-         1 for Kolmogorov-Smirnov (KM), \
-         2 for Cramer-von Mises (CM), \
-         3 for Anderson-Darling (AD), \
-         4 for Mean Expression Difference, \
-         5 for Earth Mover's Distance (EMD), \
-         6 for Bhattacharyya Distance (BD), \
-         7 for Kullback-Leibler Divergence (KL), \
+    stop("Choose distance metric with 1-7: 
+         1 for Kolmogorov-Smirnov (KM), 
+         2 for Cramer-von Mises (CM), 
+         3 for Anderson-Darling (AD), 
+         4 for Mean Expression Difference, 
+         5 for Earth Mover's Distance (EMD), 
+         6 for Bhattacharyya Distance (BD), 
+         7 for Kullback-Leibler Divergence (KL), 
          8 for Jensen-Shannon Divergence")
   }
   
   if(!method %in% c(1, 2, 3, 4)) {
-    stop("Choose regularization regression strategy with 1-4: \
-         1 for RIDGE, \
-         2 for ELASTIC NET with automatic detection of optimal alpha parameter, \
-         3 for LASSO, \
+    stop("Choose regularization regression strategy with 1-4: 
+         1 for RIDGE, 
+         2 for ELASTIC NET with automatic detection of optimal alpha parameter, 
+         3 for LASSO, 
          4 for ELASTIC NET with manual selection of alpha parameter")
   }
   
@@ -126,10 +126,10 @@ function(DATA, distance=1, method=1, noDIAG=0, SIGN=1) {
     for (test in 1:length(alphas)) {
       Y_vector <- DISTANCE_matrix[2:(num_time_points-1), gi]
       if(noDIAG == 1) {
-        CV_results <- cv.glmnet(X_matrix, Y_vector, alpha=alphas[test], exclude=gi, nfolds=nfold, foldid=foldid, \
+        CV_results <- cv.glmnet(X_matrix, Y_vector, alpha=alphas[test], exclude=gi, nfolds=nfold, foldid=foldid, 
                                 keep=keep, lower.limits=0, upper.limits=Inf, grouped=FALSE)
       } else {
-        CV_results <- cv.glmnet(X_matrix, Y_vector, alpha=alphas[test], nfolds=nfold, foldid=foldid, \
+        CV_results <- cv.glmnet(X_matrix, Y_vector, alpha=alphas[test], nfolds=nfold, foldid=foldid, 
                                 keep=keep, lower.limits=0, upper.limits=Inf, grouped=FALSE)
       }
       lambda[test] <- CV_results$lambda.min
