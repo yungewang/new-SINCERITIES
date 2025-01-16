@@ -1,0 +1,198 @@
+objective_function <- function(alpha, X_matrix, Y_vector, lambda1, lambda2, prev_alpha) {
+  residual <- Y_vector - X_matrix %*% alpha  # Residual (error term)
+  sparsity_penalty <- lambda1 * sum(abs(alpha))  # L1 norm for sparsity
+  smoothness_penalty <- lambda2 * sum(abs(alpha - prev_alpha))  # Smoothness penalty
+  #smoothness_penalty <- lambda2 * (sum(abs(alpha - prev_alpha))^2)  
+  return(sum(residual^2) + sparsity_penalty + smoothness_penalty)
+}
+
+SINCERITITES <- dget("/Users/yungewang/Downloads/SINCERITIES-R v2.0 2/SINCERITIES functions/1:6 SINCERITIES.R")
+final_ranked_predictions <- dget("/Users/yungewang/Downloads/SINCERITIES-R v2.0 2/SINCERITIES functions/final_ranked_predictions.R")
+library(igraph)
+library(ppcor)
+global_result <- SINCERITITES(DATA, distance = 7, method = 1, noDIAG = 1, SIGN = 1, normalize_distance = FALSE)
+global_distance_matrix <- global_result$DISTANCE_matrix
+
+
+# Step 1: First Window (Time Points 1–5)
+time_points <- c(12,15,36,48,57)
+# Find the indices corresponding to these time points
+time_range <- which(DATA$time %in% time_points)
+
+# Subset the data for these time points
+window_data <- DATA
+window_data$singleCELLdata <- DATA$singleCELLdata[time_range, drop = FALSE]
+window_data$time <- DATA$time[time_range]
+
+result_first_window <- SINCERITITES(window_data, distance = 7, method = 1, noDIAG = 1, SIGN = 1, normalize_distance = FALSE)
+alpha_prev <- result_first_window$adj_matrix
+
+# Plot the network for the first window
+max_value <- max(alpha_prev, na.rm = TRUE)
+adj_matrix_normalized <- alpha_prev/ max_value  # Normalize adjacency matrix
+
+# Convert adjacency matrix into a ranked table
+genes <- sprintf("G%d", 1:nrow(adj_matrix_normalized))  # Generate gene names
+table <- final_ranked_predictions(adj_matrix_normalized, genes, SIGN = 1, 
+                                  fileNAME = paste0("results_window_", i), saveFile = FALSE)
+
+# Create graph from adjacency matrix
+graph <- graph_from_adjacency_matrix(t(adj_matrix_normalized), mode = "directed", weighted = TRUE)
+
+# Assign edge colors and line types
+E(graph)$color <- ifelse(E(graph)$weight > 0, "black", "red")  # Activation: Black, Repression: Red
+E(graph)$lty <- ifelse(E(graph)$color == "red", 2, 1)  # Red edges dashed, black edges solid
+
+# Generate layout
+layout <- layout_in_circle(graph)
+
+# Plot the graph
+plot(
+  graph,
+  layout = layout,
+  vertex.size = 20,               # Size of nodes
+  vertex.color = "skyblue",       # Color of nodes
+  vertex.label = V(graph)$name,   # Label nodes with gene names (G1, G2, ...)
+  vertex.label.cex = 0.8,         # Label size
+  edge.arrow.size = 0.3,          # Arrow size
+  edge.color = E(graph)$color,    # Edge colors
+  edge.lty = E(graph)$lty,        # Edge line type
+  main = "Window 1")
+
+############################
+threshold=0.01
+filtered_matrix_1 <- adj_matrix_normalized
+filtered_matrix_1[abs(filtered_matrix_1) < threshold] <- 0
+
+# Convert adjacency matrix into a ranked table
+genes <- sprintf("G%d", 1:nrow(filtered_matrix_1))  # Generate gene names
+table_3 <- final_ranked_predictions(filtered_matrix_1, genes, SIGN = 1, 
+                                    fileNAME = paste0("results_window_", i), saveFile = FALSE)
+
+# Create graph from adjacency matrix
+graph_3 <- graph_from_adjacency_matrix(t(filtered_matrix_1), mode = "directed", weighted = TRUE)
+
+# Assign edge colors and line types
+E(graph_3)$color <- ifelse(E(graph_3)$weight > 0, "black", "red")  # Activation: Black, Repression: Red
+E(graph_3)$lty <- ifelse(E(graph_3)$color == "red", 2, 1)  # Red edges dashed, black edges solid
+
+# Generate layout
+layout_3 <- layout_in_circle(graph_3)
+
+# Plot the graph
+plot(
+  graph_3,
+  layout = layout_3,
+  vertex.size = 20,               # Size of nodes
+  vertex.color = "skyblue",       # Color of nodes
+  vertex.label = V(graph_4)$name,   # Label nodes with gene names (G1, G2, ...)
+  vertex.label.cex = 0.8,         # Label size
+  edge.arrow.size = 0.3,          # Arrow size
+  edge.color = E(graph_3)$color,    # Edge colors
+  edge.lty = E(graph_3)$lty,        # Edge line type
+  main = "Window 1")
+
+
+# Step 2: Second Window (Time Points 4–8)
+numGENES <- DATA$numGENES
+time_points_2 <- c(48,57,71,85,100)
+time_range_2 <- which(DATA$time %in% time_points_2)
+window_data_2 <- DATA
+window_data_2$singleCELLdata <- DATA$singleCELLdata[time_range_2, drop = FALSE]
+window_data_2$time <- DATA$time[time_range_2]
+
+alpha_opt_2 <- matrix(0, nrow = DATA$numGENES, ncol = DATA$numGENES)
+
+for (gi in 1:DATA$numGENES) {
+  Y_vector <- global_distance_matrix[time_range_2[2:(length(time_range_2) - 1)], gi]
+  
+  #X_matrix <- global_distance_matrix[time_range_2[1:(length(time_range_2) - 2)], ] #noDIAG=0
+  X_matrix <- global_distance_matrix[time_range_2[1:(length(time_range_2) - 2)],-gi ] #noDIAG=1
+  # Fused lasso optimization
+  result <- optim(
+    #par = alpha_prev[, gi], #noDIAG=0
+    par = alpha_prev[-gi, gi], #noDIAG=1
+    fn = objective_function,
+    X_matrix = X_matrix,
+    Y_vector = Y_vector,
+    lambda1 = 0.1,
+    lambda2 = 10,
+    #prev_alpha = alpha_prev[, gi],#noDIAG=0
+    prev_alpha = alpha_prev[-gi, gi], #noDIAG=1
+    method = "L-BFGS-B"
+  )
+  
+  #alpha_opt_2[, gi] <- result$par #noDIAG=0
+  alpha_full <- numeric(numGENES)
+  alpha_full[-gi] <- result$par
+  alpha_opt_2[, gi] <- alpha_full
+}
+# Plot the network for the second window
+
+max_value_2 <- max(alpha_opt_2, na.rm = TRUE)
+adj_matrix_normalized_2 <- alpha_opt_2/ max_value_2  # Normalize adjacency matrix
+
+
+# Convert adjacency matrix into a ranked table
+genes <- sprintf("G%d", 1:nrow(adj_matrix_normalized_2))  # Generate gene names
+table_2 <- final_ranked_predictions(adj_matrix_normalized_2, genes, SIGN = 1, 
+                                    fileNAME = paste0("results_window_", i), saveFile = FALSE)
+
+# Create graph from adjacency matrix
+graph_2 <- graph_from_adjacency_matrix(t(adj_matrix_normalized_2), mode = "directed", weighted = TRUE)
+
+# Assign edge colors and line types
+E(graph_2)$color <- ifelse(E(graph_2)$weight > 0, "black", "red")  # Activation: Black, Repression: Red
+E(graph_2)$lty <- ifelse(E(graph_2)$color == "red", 2, 1)  # Red edges dashed, black edges solid
+
+# Generate layout
+layout_2 <- layout_in_circle(graph_2)
+
+# Plot the graph
+plot(
+  graph_2,
+  layout = layout_2,
+  vertex.size = 20,               # Size of nodes
+  vertex.color = "skyblue",       # Color of nodes
+  vertex.label = V(graph_2)$name,   # Label nodes with gene names (G1, G2, ...)
+  vertex.label.cex = 0.8,         # Label size
+  edge.arrow.size = 0.3,          # Arrow size
+  edge.color = E(graph_2)$color,    # Edge colors
+  edge.lty = E(graph_2)$lty,        # Edge line type
+  main = "Window 2")
+
+
+
+
+############rule out small interactions
+threshold=0.01
+filtered_matrix_2 <- adj_matrix_normalized_2
+filtered_matrix_2[abs(filtered_matrix_2) < threshold] <- 0
+
+# Convert adjacency matrix into a ranked table
+genes <- sprintf("G%d", 1:nrow(filtered_matrix_2))  # Generate gene names
+table_4 <- final_ranked_predictions(filtered_matrix_2, genes, SIGN = 1, 
+                                    fileNAME = paste0("results_window_", i), saveFile = FALSE)
+
+# Create graph from adjacency matrix
+graph_4 <- graph_from_adjacency_matrix(t(filtered_matrix_2), mode = "directed", weighted = TRUE)
+
+# Assign edge colors and line types
+E(graph_4)$color <- ifelse(E(graph_4)$weight > 0, "black", "red")  # Activation: Black, Repression: Red
+E(graph_4)$lty <- ifelse(E(graph_4)$color == "red", 2, 1)  # Red edges dashed, black edges solid
+
+# Generate layout
+layout_4 <- layout_in_circle(graph_4)
+
+# Plot the graph
+plot(
+  graph_4,
+  layout = layout_4,
+  vertex.size = 20,               # Size of nodes
+  vertex.color = "skyblue",       # Color of nodes
+  vertex.label = V(graph_4)$name,   # Label nodes with gene names (G1, G2, ...)
+  vertex.label.cex = 0.8,         # Label size
+  edge.arrow.size = 0.3,          # Arrow size
+  edge.color = E(graph_4)$color,    # Edge colors
+  edge.lty = E(graph_4)$lty,        # Edge line type
+  main = "Window 2")
